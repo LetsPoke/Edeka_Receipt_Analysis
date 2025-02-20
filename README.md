@@ -1,3 +1,7 @@
+> [!NOTE]  
+> Was bored and fiddled around with ChatGPT and my own receipt data.  
+> Might improve/continue on this the next time I get bored.
+
 # Edeka Receipt Analysis
 
 A small project that parses PDF supermarket receipts (from Edeka), extracts structured data, and analyzes shopping insights. The solution is written in **Python** and uses [pdfplumber](https://github.com/jsvine/pdfplumber) for text extraction.
