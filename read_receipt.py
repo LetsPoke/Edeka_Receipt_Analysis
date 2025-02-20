@@ -146,29 +146,37 @@ def parse_item_line(line: str) -> dict:
         "unit_price": float,
         "total_price": float
       }
+    Supports line formats like:
+      - "GURKEN 0,49 x 4"
+      - "GURKEN 0,49 EUR x 4"
+      - "GURKEN 0,49 € x 4"
 
     Approach:
       1) Extract total_price at the end of the line (e.g. "1,95 B" -> 1.95).
-      2) Check if there's a pattern "X,YZ € x N" to find unit_price and quantity.
+      2) Check if there's a pattern "([\d,]+)(?:EUR|€)? x (\d+)" to find unit_price and quantity.
       3) If the pattern is broken, but we do have quantity and total_price => unit_price = total_price / quantity.
       4) If nothing matches => quantity=1, unit_price = total_price
     """
     # 1) Remove the final price from the line
     total_price_pattern = re.compile(r"([\d,]+)\s*(?:[A-Z]+|\*?[A-Z]+)?$")
-    # ([\d,]+) -> "1,95"
-    # \s*(?:[A-Z]+|\*?[A-Z]+)? -> optional letters, e.g. "B" or "*B" or "AW"
     m_total = total_price_pattern.search(line)
     if not m_total:
-        # No end price found => not a valid article line
+        # No end price found => not a valid item line
         return {}
 
     total_str = m_total.group(1)
     total_val = float(total_str.replace(",", "."))
-    # Cut it off the line
+    # Cut that off the end of 'line'
     line_clean = line[:m_total.start()].strip()
 
-    # 2) Look for the pattern "(\d+,\d+) € x (\d+)" e.g. "0,65 € x 3"
-    pattern_price_qty = re.compile(r"(.*?)([\d,]+)\s*€\s*x\s*(\d+)(.*)")
+    # 2) This pattern matches:
+    #    "someName... (number) [EUR|€ optional] x (quantity) moreText..."
+    #    e.g. "GURKEN 0,49 x 4", "GURKEN 0,49 EUR x 4", "GURKEN 0,49 € x 4"
+    #    The group(2) will be our price_str, group(3) will be the quantity.
+    pattern_price_qty = re.compile(
+        r"(.*?)([\d,]+)\s*(?:EUR|€)?\s*x\s*(\d+)(.*)",
+        re.IGNORECASE
+    )
     mq = pattern_price_qty.search(line_clean)
 
     # Default result
@@ -185,26 +193,29 @@ def parse_item_line(line: str) -> dict:
             unit_price_val = float(price_str.replace(",", "."))
             quantity_val = int(qty_str)
         except ValueError:
-            # Fallback => keep item as is
+            # Fallback => keep item as-is
             pass
         else:
             item["quantity"] = quantity_val
             item["unit_price"] = unit_price_val
+            # Rebuild name from everything outside the pattern
             item["name"] = cleanup_name(pre_text + " " + post_text)
             item["total_price"] = total_val
 
-            # 3) If unit_price * quantity != total_val => we keep total_val
-            #    and recalculate unit_price = total_val / quantity
-            #    This fixes potential PDF extraction issues.
+            # 3) If unit_price * quantity != total_val => recalc
             computed = round(unit_price_val * quantity_val, 2)
-            if abs(computed - round(total_val, 2)) > 0.01:
-                # If there's a discrepancy => recalc unit_price
-                item["unit_price"] = round(total_val / quantity_val, 2)
+            if quantity_val == 0:
+                # quantity cannot be zero, so skip or fallback
+                # Option A: fallback to quantity=1
+                quantity_val = 1
+                item["quantity"] = 1
+                item["unit_price"] = total_val  # if we assume total_val is correct
+            else:
+                # proceed with the mismatch check
+                if abs(computed - round(total_val, 2)) > 0.01:
+                    item["unit_price"] = round(total_val / quantity_val, 2)
     else:
-        # Fallback: no "€ x" found
-        # => quantity=1, unit_price = total_price
-        # => If the line text is broken (e.g. "E.Vega.Kochcrem1n,e49 ..."),
-        #    we have total_val, so name = line_clean
+        # 4) No "x" pattern found => quantity=1, unit_price= total_price
         item["name"] = cleanup_name(item["name"])
 
     return item

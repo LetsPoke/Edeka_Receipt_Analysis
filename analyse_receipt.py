@@ -4,6 +4,30 @@ import pandas as pd
 def main():
     csv_file = os.path.join("output", "parsed_receipts.csv")
     df = pd.read_csv(csv_file)
+    # Display the first few rows of the DataFrame
+    print("=== First Few Rows ===")
+    print(df.head())
+    print()
+
+    # Display the column names and data types
+    print("=== Column Names and Data Types ===")
+    print(df.dtypes)
+    print()
+
+    # Display the number of rows and columns
+    print("=== Number of Rows and Columns ===")
+    print(df.shape)
+    print()
+
+    # Display basic statistics for numerical columns
+    print("=== Basic Statistics ===")
+    print(df.describe())
+    print()
+
+    # Display the unique values in the 'item_name' column
+    print("=== Unique Items ===")
+    print(df["item_name"].unique())
+    print()
 
     # 1) Adjust data types if necessary.
     #    Make sure 'date' and 'time' are strings (or transform them later to datetime).
@@ -53,11 +77,11 @@ def main():
     ).reset_index()
 
     # Sort by most purchased items
-    item_stats_most_bought = item_stats.sort_values(by="total_quantity", ascending=False).head(10)
+    item_stats_most_bought = item_stats.sort_values(by="total_quantity", ascending=False).head(20)
     # Sort by total spending
     item_stats_highest_spend = item_stats.sort_values(by="total_spend", ascending=False).head(10)
 
-    print("=== Top 10 Most Purchased Items (by Quantity) ===")
+    print("=== Top 20 Most Purchased Items (by Quantity) ===")
     print(item_stats_most_bought)
     print()
 
