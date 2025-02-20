@@ -11,3 +11,5 @@ venv/
 # Outputs
 .output/
 
+# Secrets
+config.py
