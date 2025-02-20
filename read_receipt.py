@@ -3,17 +3,17 @@ import re
 import json
 import pdfplumber
 
-def parse_kassenbon(pdf_path: str) -> dict:
+def parse_receipt(pdf_path: str) -> dict:
     """
-    Öffnet ein mehrseitiges PDF, sammelt alle Zeilen in all_lines
-    und parsed diese zu einem einzigen Kassenbon-Dict:
-      {
+    Opens a multi-page PDF, collects all text lines in `all_lines`,
+    and parses them into a single receipt dictionary of the form:
+    {
         "date": "...",
         "time": "...",
         "items": [...],
         "summe": float,
         "file": pdf_path
-      }
+    }
     """
     all_lines = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -24,16 +24,15 @@ def parse_kassenbon(pdf_path: str) -> dict:
                     line = line.strip()
                     all_lines.append(line)
 
-    # Danach interpretieren wir das als EINEN Bon.
+    # We interpret all collected lines as one single receipt.
     return parse_lines(all_lines)
-
 
 def parse_lines(lines: list) -> dict:
     """
-    Nimmt alle Zeilen eines Kassenbons und extrahiert:
-      - Datum / Uhrzeit
-      - Liste von Items (mit name, quantity, unit_price, total_price)
-      - summe (Endsumme des Bons)
+    Takes all lines from a receipt and extracts:
+      - date/time
+      - a list of items (with name, quantity, unit_price, total_price)
+      - summe (the final total of the receipt)
     """
     result = {
         "date": None,
@@ -44,19 +43,19 @@ def parse_lines(lines: list) -> dict:
 
     collecting_items = False
 
-    # Regex für SUMME
+    # Regex for SUMME (total sum)
     sum_pattern = re.compile(r"SUMME\s*€\s*([\d,]+)")
-    # Regex für Datum+Uhrzeit
+    # Regex for date + time (e.g. 18.02.25 17:49)
     date_time_pattern = re.compile(r"(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})")
 
     for idx, line in enumerate(lines):
-        # 1) Datum/Uhrzeit checken
+        # 1) Check date/time
         dt_match = date_time_pattern.search(line)
         if dt_match:
-            result["date"] = dt_match.group(1)  # z.B. "18.02.25"
-            result["time"] = dt_match.group(2)  # z.B. "17:49"
+            result["date"] = dt_match.group(1)  # e.g. "18.02.25"
+            result["time"] = dt_match.group(2)  # e.g. "17:49"
 
-        # 2) SUMME => Items enden
+        # 2) If "SUMME" appears => stop collecting items
         if "SUMME" in line:
             collecting_items = False
             m_sum = sum_pattern.search(line)
@@ -64,88 +63,83 @@ def parse_lines(lines: list) -> dict:
                 result["summe"] = float(m_sum.group(1).replace(",", "."))
             continue
 
-        # 3) EUR => ab hier starten wir das Sammeln von Artikelzeilen
+        # 3) If the line starts with "EUR" => start collecting items
         if line.startswith("EUR"):
             collecting_items = True
             continue
 
-        # 4) Falls wir gerade Artikel sammeln, verarbeiten wir die Zeilen
+        # 4) If we are collecting items, process each line
         if collecting_items:
-            # a) Falls es eine "Posten:" Zeile oder ähnliches ist, skippen wir
+            # a) If it's a "Posten:" line or similar, skip it
             if "Posten:" in line or line.lower().startswith("posten"):
                 continue
             if "Coupon:" in line:
                 continue
 
-            # b) Erkennen wir eine Zeile mit Kilo-Angaben?
-            #    z.B. "0,480 kg x 2,99 /kg" => wir reichern den letzten Artikel an
+            # b) Check if it's a kilo line (e.g. "0,480 kg x 2,99 /kg")
+            #    => we enrich the last item with weight info
             if is_kilo_line(line):
                 parse_kilo_line(line, result["items"])
                 continue
 
-            # c) Sonst versuchen wir, die Zeile als normalen Artikel zu parsen
+            # c) Otherwise, treat it as a normal article line
             item = parse_item_line(line)
-            # Wenn parse_item_line sagt, es war wahrscheinlich kein Artikel,
-            # kann man optional skippen.
+            # If parse_item_line indicates it's not a valid item,
+            # optionally skip it.
             if not item:
                 continue
 
-            # item zurück in die Liste
+            # Add the item to our list
             result["items"].append(item)
 
     return result
 
-
 def is_kilo_line(line: str) -> bool:
     """
-    Prüft, ob es sich um eine Zeile handelt wie "0,480 kg x 2,99 /kg".
-    Gibt True/False zurück.
+    Checks if the line is something like "0,480 kg x 2,99 /kg".
+    Returns True/False.
     """
-    # Ein simples Regex: ([\d,]+) kg x ([\d,]+) /kg
-    # Bsp: "0,480 kg x 2,99 /kg"
+    # Simple regex: ([\d,]+) kg x ([\d,]+) /kg
+    # Example: "0,480 kg x 2,99 /kg"
     pattern = re.compile(r"^[\d,]+\s*kg\s*x\s*[\d,]+\s*/kg", re.IGNORECASE)
     return bool(pattern.search(line))
 
-
 def parse_kilo_line(line: str, items: list):
     """
-    Liest Zeilen wie "0,480 kg x 2,99 /kg", berechnet total_price = 0,480*2,99,
-    und reichert den *letzten* Artikel (items[-1]) damit an.
-    - quantity = 0.480 (sprich, KG)
-    - unit_price = 2.99 (€/kg)
-    - total_price = gerundetes Ergebnis
-    - name bleibt unverändert.
-    Hinweis: Falls items leer ist, machen wir nichts.
+    Reads lines like "0,480 kg x 2,99 /kg", calculates total_price = 0.480 * 2.99,
+    and enriches the *last* item in the list (items[-1]) with these values:
+      - quantity = 0.480 (i.e., the weight in kg)
+      - unit_price = 2.99 (price per kg)
+      - total_price = the rounded result
+      - name remains unchanged.
+    If 'items' is empty, we do nothing.
     """
     if not items:
-        return  # Keine vorherigen Artikel vorhanden
+        return  # No previous items
 
     pattern = re.compile(r"^([\d,]+)\s*kg\s*x\s*([\d,]+)\s*/kg", re.IGNORECASE)
     m = pattern.search(line)
     if m:
-        weight_str = m.group(1)  # z.B. "0,480"
-        kg_price_str = m.group(2)  # z.B. "2,99"
+        weight_str = m.group(1)  # e.g. "0,480"
+        kg_price_str = m.group(2)  # e.g. "2,99"
         weight_val = float(weight_str.replace(",", "."))
         kg_price_val = float(kg_price_str.replace(",", "."))
 
         total = round(weight_val * kg_price_val, 2)
 
-        # Letzten Artikel anreichern:
+        # Enrich the last item
         last_item = items[-1]
-        # Falls der letzte Artikel schon was drin hat (z.B. quantity=1),
-        # überschreiben wir das. Alternativ könntest du es addieren o.ä.
+        # If the last item already had quantity=1, we overwrite it here.
         last_item["quantity"] = weight_val
         last_item["unit_price"] = kg_price_val
         last_item["total_price"] = total
-        # Der name bleibt so, wie er im letzten Artikel war
-        # (z.B. "PORREE lose").
+        # The name remains as it was, e.g. "PORREE lose".
 
-        # Fertig. Wir legen KEINEN neuen Artikel an.
-
+        # We do NOT add a new item entry.
 
 def parse_item_line(line: str) -> dict:
     """
-    Parst eine normale Artikelzeile in:
+    Parses a normal article line into:
       {
         "name": ...,
         "quantity": int,
@@ -153,32 +147,31 @@ def parse_item_line(line: str) -> dict:
         "total_price": float
       }
 
-    Vorgehen:
-      1) Extrahiere total_price am Zeilenende (z.B. "1,95 B" -> 1,95).
-      2) Schaue, ob ein Muster "X,YZ € x N" existiert, um unit_price und quantity zu holen.
-      3) Falls es kaputt ist, wir haben quantity, total_price => unit_price = total_price / quantity.
-      4) Falls gar nichts geht => quantity=1, unit_price=total_price
+    Approach:
+      1) Extract total_price at the end of the line (e.g. "1,95 B" -> 1.95).
+      2) Check if there's a pattern "X,YZ € x N" to find unit_price and quantity.
+      3) If the pattern is broken, but we do have quantity and total_price => unit_price = total_price / quantity.
+      4) If nothing matches => quantity=1, unit_price = total_price
     """
-    # 1) Gesamten Endpreis entfernen
+    # 1) Remove the final price from the line
     total_price_pattern = re.compile(r"([\d,]+)\s*(?:[A-Z]+|\*?[A-Z]+)?$")
     # ([\d,]+) -> "1,95"
-    # \s*(?:[A-Z]+|\*?[A-Z]+)? -> optional Buchstaben etc. "B" oder "*B" oder "AW"
+    # \s*(?:[A-Z]+|\*?[A-Z]+)? -> optional letters, e.g. "B" or "*B" or "AW"
     m_total = total_price_pattern.search(line)
     if not m_total:
-        # Kein Endpreis gefunden => Kein valider Artikel
+        # No end price found => not a valid article line
         return {}
 
     total_str = m_total.group(1)
     total_val = float(total_str.replace(",", "."))
-    # Schneide das hinten ab:
+    # Cut it off the line
     line_clean = line[:m_total.start()].strip()
 
-    # 2) Suche unser Muster:  "(\d+,\d+) € x (\d+)"
-    #    z.B. "0,65 € x 3"
+    # 2) Look for the pattern "(\d+,\d+) € x (\d+)" e.g. "0,65 € x 3"
     pattern_price_qty = re.compile(r"(.*?)([\d,]+)\s*€\s*x\s*(\d+)(.*)")
     mq = pattern_price_qty.search(line_clean)
 
-    # Standard-Result
+    # Default result
     item = {
         "name": line_clean.strip(),
         "quantity": 1,
@@ -192,7 +185,7 @@ def parse_item_line(line: str) -> dict:
             unit_price_val = float(price_str.replace(",", "."))
             quantity_val = int(qty_str)
         except ValueError:
-            # Fallback => wir behalten item so
+            # Fallback => keep item as is
             pass
         else:
             item["quantity"] = quantity_val
@@ -200,56 +193,61 @@ def parse_item_line(line: str) -> dict:
             item["name"] = cleanup_name(pre_text + " " + post_text)
             item["total_price"] = total_val
 
-            # 3) Falls unit_price * quantity != total_val => wir übernehmen total_val,
-            #    und erlauben die Korrektur: unit_price = total_val / quantity
-            #    So beheben wir Problem #1: Falls PDF-Text kaputt war.
+            # 3) If unit_price * quantity != total_val => we keep total_val
+            #    and recalculate unit_price = total_val / quantity
+            #    This fixes potential PDF extraction issues.
             computed = round(unit_price_val * quantity_val, 2)
             if abs(computed - round(total_val, 2)) > 0.01:
-                # Falls Diskrepanz => Stückpreis ausrechnen:
+                # If there's a discrepancy => recalc unit_price
                 item["unit_price"] = round(total_val / quantity_val, 2)
-
     else:
-        # Fallback-Fall: Kein "€ x" gefunden
-        # => quantity=1, unit_price= total_price
-        # => Falls der Zeiletext kaputt ist (z.B. "E.Vega.Kochcrem1n,e49 ..."),
-        #    wir haben total_val, also name= line_clean
+        # Fallback: no "€ x" found
+        # => quantity=1, unit_price = total_price
+        # => If the line text is broken (e.g. "E.Vega.Kochcrem1n,e49 ..."),
+        #    we have total_val, so name = line_clean
         item["name"] = cleanup_name(item["name"])
 
     return item
 
-
 def cleanup_name(raw_name: str) -> str:
     """
-    Entfernt störende Sonderzeichen, mehrfache Leerzeichen etc.
+    Removes unwanted characters and multiple spaces, etc.
     """
-    # Optional: Ersetze "€", "*", etc.
+    # Optionally remove "€", "*" etc.
     name = raw_name.replace("€", "").replace("*", " ").strip()
-    # Mehrfach-Spaces -> einfacher Space
+    # Turn multiple spaces into a single space
     name = " ".join(name.split())
 
-    # Hier könntest du weitere Heuristiken einbauen, z.B.
-    # "(\d)n,e(\d+)" -> "\1,\2" falls du die kaputten "1n,e49" -> "1,49" fixen willst.
-    # => re.sub(r"(\d)n,e(\d+)", r"\1,\2", name)
+    # If needed, apply further heuristics here. For example:
+    # "(\d)n,e(\d+)" -> "\1,\2" if you want to fix "1n,e49" -> "1,49".
+    # e.g. re.sub(r"(\d)n,e(\d+)", r"\1,\2", name)
 
     return name
 
 def main():
-    folder = "Kassenbons"
-    output_json = "parsed_kassenbons.json"
+    # Create an output folder if it doesn't exist
+    output_folder = "output"
+    os.makedirs(output_folder, exist_ok=True)
+
+    # We'll save 'parsed_receipts.json' inside the output folder
+    json_output_path = os.path.join(output_folder, "parsed_receipts.json")
+
+    folder = "Receipts"  # Where the PDFs are stored
     all_data = []
 
     for filename in os.listdir(folder):
         if filename.lower().endswith(".pdf"):
             pdf_path = os.path.join(folder, filename)
-            data = parse_kassenbon(pdf_path)
-            data["file"] = filename
-            all_data.append(data)
+            parsed = parse_receipt(pdf_path)
+            parsed["file"] = filename
+            all_data.append(parsed)
 
-    with open(output_json, "w", encoding="utf-8") as f:
+    # Save the JSON data
+    with open(json_output_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, indent=2, ensure_ascii=False)
 
-    print(f"Parsing abgeschlossen. {len(all_data)} PDF-Dateien verarbeitet.")
-    print(f"Ergebnisse in: {output_json}")
+    print(f"Parsing complete. {len(all_data)} PDFs processed.")
+    print(f"Results saved to: {json_output_path}")
 
 if __name__ == "__main__":
     main()

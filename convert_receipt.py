@@ -1,16 +1,17 @@
+import os
 import json
 import csv
 
 def convert_json_to_csv(json_file, csv_file):
     """
-    Konvertiert die Kassenbon-Daten aus parsed_kassenbons.json in eine CSV-Datei.
-    Für jeden Artikel (= items-Eintrag) erzeugen wir eine Zeile.
+    Converts receipt data from a JSON file into a CSV file,
+    creating one row per item.
     """
 
     with open(json_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Angepasste CSV-Spalten
+    # CSV column names (adjust if necessary)
     fieldnames = [
         "file",
         "date",
@@ -30,10 +31,9 @@ def convert_json_to_csv(json_file, csv_file):
             file_name = bon.get("file", "")
             bon_date = bon.get("date", "")
             bon_time = bon.get("time", "")
-            bon_summe = bon.get("summe", 0.0)
+            bon_sum = bon.get("summe", 0.0)  # 'summe' is the field in JSON
             items = bon.get("items", [])
 
-            # Pro Artikel eine Zeile schreiben
             for item in items:
                 row = {
                     "file": file_name,
@@ -43,15 +43,24 @@ def convert_json_to_csv(json_file, csv_file):
                     "quantity": item.get("quantity", 1),
                     "unit_price": item.get("unit_price", 0.0),
                     "total_price": item.get("total_price", 0.0),
-                    "bon_sum": bon_summe
+                    "bon_sum": bon_sum
                 }
                 writer.writerow(row)
 
-    print(f"Konvertierung nach CSV abgeschlossen. Datei: {csv_file}")
+    print(f"Conversion to CSV completed. File: {csv_file}")
+
 
 def main():
-    input_json = "parsed_kassenbons.json"
-    output_csv = "parsed_kassenbons.csv"
+    # We assume the JSON is in the 'output' folder
+    input_json = os.path.join("output", "parsed_receipts.json")
+
+    # Create 'output' folder if it does not exist
+    output_folder = "output"
+    os.makedirs(output_folder, exist_ok=True)
+
+    # We'll write parsed_receipts.csv to the 'output' folder
+    output_csv = os.path.join(output_folder, "parsed_receipts.csv")
+
     convert_json_to_csv(input_json, output_csv)
 
 if __name__ == "__main__":

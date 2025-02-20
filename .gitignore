@@ -7,3 +7,7 @@ venv/
 
 # Mac
 .DS_Store
+
+# Outputs
+.output/
+
