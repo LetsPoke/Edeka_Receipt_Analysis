@@ -19,6 +19,44 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 - **Data Analysis**  
   Performs aggregations and summaries (daily spend, items purchased, top items, etc.) using [pandas](https://pandas.pydata.org/).
 
+## Example Output
+
+### JSON Output
+
+```json
+{
+    "store": "Edeka",
+    "date": "2021-08-01",
+    "time": "12:34",
+    "items": [
+        {
+            "name": "Milk",
+            "quantity": 1,
+            "unit_price": 1.29,
+            "total_price": 1.29
+        },
+        {
+            "name": "Bread",
+            "quantity": 2,
+            "unit_price": 0.99,
+            "total_price": 1.98
+        }
+    ],
+    "total": 3.27
+}
+```
+
+### CSV Output
+
+| Store | Date       | Time | Item  | Quantity | Unit Price | Total Price |
+|-------|------------|------|-------|----------|------------|-------------|
+| Edeka | 2021-08-01 | 12:34| Milk  | 1        | 1.29       | 1.29        |
+| Edeka | 2021-08-01 | 12:34| Bread | 2        | 0.99       | 1.98        |
+
+### Console Output
+
+![example_output.png](example_output.png)
+
 ## Repository Structure
 
 ```
