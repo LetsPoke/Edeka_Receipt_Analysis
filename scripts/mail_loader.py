@@ -6,7 +6,8 @@ from config import GMAIL_USER, APP_PASS
 # Adjust these:
 GMAIL_USER = GMAIL_USER
 APP_PASS = APP_PASS  # or your normal password if 2FA is off
-OUTPUT_DIR = "Receipts"         # Folder where we save PDFs
+OUTPUT_DIR = "../receipts/pdfs"  # Folder where we save PDFs
+
 
 def download_pdfs_from_gmail():
     # Ensure the output folder exists
@@ -64,6 +65,7 @@ def download_pdfs_from_gmail():
     # 8) Logout
     mail.close()
     mail.logout()
+
 
 if __name__ == "__main__":
     download_pdfs_from_gmail()
