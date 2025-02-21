@@ -8,6 +8,9 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 
 ## Features
 
+- **Automatic PDF Download**  
+  Downloads receipts from your Gmail mailbox using the `mail_loader.py` script.
+
 - **PDF Parsing**  
   Extracts text from receipts and converts them into structured JSON.
     - Identifies each item, including quantity, unit price, and total price.
