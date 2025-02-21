@@ -78,7 +78,11 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 
 ## Usage
 
-1. **Place your PDF receipts** in the `receipts/pdfs/` folder.
+1. **Place your PDF receipts** in the `receipts/pdfs/` folder. or use the `mail_loader.py` script to download receipts from your gmail mailbox.
+   ```
+   python scripts/mail_loader.py
+   ```
+    - The script will download the latest receipt from your mailbox and save it in the `receipts/pdfs/` folder.
 2. **Parse receipts** into JSON:
    ```
    python scripts/read_receipt.py
