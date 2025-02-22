@@ -5,7 +5,7 @@ def analyze_item_purchases(df):
     ).reset_index()
 
     # Most purchased items
-    item_stats_most_bought = item_stats.sort_values(by="total_quantity", ascending=False).head(20)
+    item_stats_most_bought = item_stats.sort_values(by="total_quantity", ascending=False).head(10)
 
     # Most expensive items
     item_stats_highest_spend = item_stats.sort_values(by="total_spend", ascending=False).head(10)

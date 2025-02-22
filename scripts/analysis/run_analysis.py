@@ -31,7 +31,7 @@ def main():
     # Item Analysis
     item_stats, most_bought, most_expensive = analyze_item_purchases(df)
 
-    print("=== Top 20 Most Purchased Items ===")
+    print("=== Top 10 Most Purchased Items ===")
     print(most_bought, "\n")
 
     print("=== Top 10 Most Expensive Items ===")
