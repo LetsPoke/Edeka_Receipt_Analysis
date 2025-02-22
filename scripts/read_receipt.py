@@ -6,15 +6,15 @@ import pdfplumber
 
 def parse_receipt(pdf_path: str) -> dict:
     """
-    Opens a multi-page PDF, collects all text lines in `all_lines`,
-    and parses them into a single receipt dictionary of the form:
-    {
+    Opens a multi-page PDF, collects all text lines,
+    and parses them into a single receipt dictionary:
+      {
         "date": "...",
         "time": "...",
         "items": [...],
         "summe": float,
         "file": pdf_path
-    }
+      }
     """
     all_lines = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -25,16 +25,15 @@ def parse_receipt(pdf_path: str) -> dict:
                     line = line.strip()
                     all_lines.append(line)
 
-    # We interpret all collected lines as one single receipt.
     return parse_lines(all_lines)
 
 
 def parse_lines(lines: list) -> dict:
     """
-    Takes all lines from a receipt and extracts:
+    Extracts from all lines:
       - date/time
-      - a list of items (with name, quantity, unit_price, total_price)
-      - summe (the final total of the receipt)
+      - list of items (name, quantity, unit_price, total_price)
+      - summe (final total)
     """
     result = {
         "date": None,
@@ -45,19 +44,17 @@ def parse_lines(lines: list) -> dict:
 
     collecting_items = False
 
-    # Regex for SUMME (total sum)
     sum_pattern = re.compile(r"SUMME\s*€\s*([\d,]+)")
-    # Regex for date + time (e.g. 18.02.25 17:49)
     date_time_pattern = re.compile(r"(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})")
 
     for idx, line in enumerate(lines):
-        # 1) Check date/time
+        # 1) Look for date/time
         dt_match = date_time_pattern.search(line)
         if dt_match:
-            result["date"] = dt_match.group(1)  # e.g. "18.02.25"
-            result["time"] = dt_match.group(2)  # e.g. "17:49"
+            result["date"] = dt_match.group(1)
+            result["time"] = dt_match.group(2)
 
-        # 2) If "SUMME" appears => stop collecting items
+        # 2) If we see "SUMME", stop collecting items
         if "SUMME" in line:
             collecting_items = False
             m_sum = sum_pattern.search(line)
@@ -65,33 +62,29 @@ def parse_lines(lines: list) -> dict:
                 result["summe"] = float(m_sum.group(1).replace(",", "."))
             continue
 
-        # 3) If the line starts with "EUR" => start collecting items
+        # 3) If line starts with "EUR", start item collection
         if line.startswith("EUR"):
             collecting_items = True
             continue
 
-        # 4) If we are collecting items, process each line
+        # 4) If we are collecting items, handle each line
         if collecting_items:
-            # a) If it's a "Posten:" line or similar, skip it
-            if "Posten:" in line or line.lower().startswith("posten"):
-                continue
-            if "Coupon:" in line:
+            # Skip certain lines
+            lines_to_skip = ["Posten", "Coupon", "Positionsrabatt", "Summe", "Nummer:"]
+            if any(skip in line for skip in lines_to_skip):
                 continue
 
-            # b) Check if it's a kilo line (e.g. "0,480 kg x 2,99 /kg")
-            #    => we enrich the last item with weight info
+            # Check if it's a "kilo line" like "0,480 kg x 2,99 /kg"
             if is_kilo_line(line):
                 parse_kilo_line(line, result["items"])
                 continue
 
-            # c) Otherwise, treat it as a normal article line
+            # Otherwise, parse it as a normal item
             item = parse_item_line(line)
-            # If parse_item_line indicates it's not a valid item,
-            # optionally skip it.
             if not item:
+                # parse_item_line returned {} => skip
                 continue
 
-            # Add the item to our list
             result["items"].append(item)
 
     return result
@@ -99,94 +92,69 @@ def parse_lines(lines: list) -> dict:
 
 def is_kilo_line(line: str) -> bool:
     """
-    Checks if the line is something like "0,480 kg x 2,99 /kg".
-    Returns True/False.
+    e.g. "0,480 kg x 2,99 /kg"
     """
-    # Simple regex: ([\d,]+) kg x ([\d,]+) /kg
-    # Example: "0,480 kg x 2,99 /kg"
     pattern = re.compile(r"^[\d,]+\s*kg\s*x\s*[\d,]+\s*/kg", re.IGNORECASE)
     return bool(pattern.search(line))
 
 
 def parse_kilo_line(line: str, items: list):
     """
-    Reads lines like "0,480 kg x 2,99 /kg", calculates total_price = 0.480 * 2.99,
-    and enriches the *last* item in the list (items[-1]) with these values:
-      - quantity = 0.480 (i.e., the weight in kg)
-      - unit_price = 2.99 (price per kg)
-      - total_price = the rounded result
-      - name remains unchanged.
-    If 'items' is empty, we do nothing.
+    e.g. "0,480 kg x 2,99 /kg"
+    Convert last item from quantity=1 => quantity=0.48, unit_price=2.99, etc.
     """
     if not items:
-        return  # No previous items
+        return
 
     pattern = re.compile(r"^([\d,]+)\s*kg\s*x\s*([\d,]+)\s*/kg", re.IGNORECASE)
     m = pattern.search(line)
     if m:
-        weight_str = m.group(1)  # e.g. "0,480"
-        kg_price_str = m.group(2)  # e.g. "2,99"
+        weight_str = m.group(1)
+        kg_price_str = m.group(2)
         weight_val = float(weight_str.replace(",", "."))
         kg_price_val = float(kg_price_str.replace(",", "."))
 
         total = round(weight_val * kg_price_val, 2)
 
-        # Enrich the last item
         last_item = items[-1]
-        # If the last item already had quantity=1, we overwrite it here.
         last_item["quantity"] = weight_val
         last_item["unit_price"] = kg_price_val
         last_item["total_price"] = total
-        # The name remains as it was, e.g. "PORREE lose".
-
-        # We do NOT add a new item entry.
 
 
 def parse_item_line(line: str) -> dict:
     """
-    Parses a normal article line into:
-      {
-        "name": ...,
-        "quantity": int,
-        "unit_price": float,
-        "total_price": float
-      }
-    Supports line formats like:
-      - "GURKEN 0,49 x 4"
-      - "GURKEN 0,49 EUR x 4"
-      - "GURKEN 0,49 € x 4"
-
-    Approach:
-      1) Extract total_price at the end of the line (e.g. "1,95 B" -> 1.95).
-      2) Check if there's a pattern "([\d,]+)(?:EUR|€)? x (\d+)" to find unit_price and quantity.
-      3) If the pattern is broken, but we do have quantity and total_price => unit_price = total_price / quantity.
-      4) If nothing matches => quantity=1, unit_price = total_price
+    Parses a line into {name, quantity, unit_price, total_price},
+    handling old vs new receipt styles (ö -> oe, uppercase->mixed).
+    Also skip lines like "4 x" if you want to avoid them as separate items.
     """
-    # 1) Remove the final price from the line
+    # If the line is just "4 x" or "2 x" with no price, skip it
+    # Todo: add quantity to the item name (schema changed 2023-02-22) we can handle new but not old schema
+    if re.match(r"^\d+\s*x\s*$", line):
+        return {}
+
+    # 1) Extract the final price (e.g. "1,95 B" => "1,95")
     total_price_pattern = re.compile(r"([\d,]+)\s*(?:[A-Z]+|\*?[A-Z]+)?$")
     m_total = total_price_pattern.search(line)
     if not m_total:
-        # No end price found => not a valid item line
         return {}
 
     total_str = m_total.group(1)
     total_val = float(total_str.replace(",", "."))
-    # Cut that off the end of 'line'
     line_clean = line[:m_total.start()].strip()
 
-    # 2) This pattern matches:
-    #    "someName... (number) [EUR|€ optional] x (quantity) moreText..."
-    #    e.g. "GURKEN 0,49 x 4", "GURKEN 0,49 EUR x 4", "GURKEN 0,49 € x 4"
-    #    The group(2) will be our price_str, group(3) will be the quantity.
+    # 2) Pattern for e.g. "GURKEN 0,49 € x 4"
+    # => group(2)=0,49, group(3)=4
+    # We allow optional "EUR" or "€"
+    # Or older style might just be "GURKEN 0,49 x 4"
     pattern_price_qty = re.compile(
         r"(.*?)([\d,]+)\s*(?:EUR|€)?\s*x\s*(\d+)(.*)",
         re.IGNORECASE
     )
     mq = pattern_price_qty.search(line_clean)
 
-    # Default result
     item = {
-        "name": line_clean.strip(),
+        "name": cleanup_name(line_clean),
         "quantity": 1,
         "unit_price": total_val,
         "total_price": total_val
@@ -198,59 +166,56 @@ def parse_item_line(line: str) -> dict:
             unit_price_val = float(price_str.replace(",", "."))
             quantity_val = int(qty_str)
         except ValueError:
-            # Fallback => keep item as-is
             pass
         else:
             item["quantity"] = quantity_val
             item["unit_price"] = unit_price_val
-            # Rebuild name from everything outside the pattern
-            item["name"] = cleanup_name(pre_text + " " + post_text)
-            item["total_price"] = total_val
+            # Rebuild the name from outside parts
+            new_name = cleanup_name(pre_text + " " + post_text)
+            if new_name:
+                item["name"] = new_name
 
-            # 3) If unit_price * quantity != total_val => recalc
+            # If there's a mismatch, recalc unit_price
             computed = round(unit_price_val * quantity_val, 2)
             if quantity_val == 0:
-                # quantity cannot be zero, so skip or fallback
-                # Option A: fallback to quantity=1
-                quantity_val = 1
                 item["quantity"] = 1
-                item["unit_price"] = total_val  # if we assume total_val is correct
+                item["unit_price"] = total_val
             else:
-                # proceed with the mismatch check
                 if abs(computed - round(total_val, 2)) > 0.01:
                     item["unit_price"] = round(total_val / quantity_val, 2)
-    else:
-        # 4) No "x" pattern found => quantity=1, unit_price= total_price
-        item["name"] = cleanup_name(item["name"])
 
     return item
 
 
 def cleanup_name(raw_name: str) -> str:
     """
-    Removes unwanted characters and multiple spaces, etc.
+    1) Convert to a consistent case (e.g. lower).
+    2) Replace 'ö'->'oe', 'ü'->'ue', 'ä'->'ae'.
+    3) Convert to Title-case or keep lower.
+    4) Remove extra spaces, skip lines like '4 x' if you want to do it here.
     """
-    # Optionally remove "€", "*" etc.
-    name = raw_name.replace("€", "").replace("*", " ").strip()
-    # Turn multiple spaces into a single space
-    name = " ".join(name.split())
+    # Make everything lowercase
+    name = raw_name.lower()
 
-    # If needed, apply further heuristics here. For example:
-    # "(\d)n,e(\d+)" -> "\1,\2" if you want to fix "1n,e49" -> "1,49".
-    # e.g. re.sub(r"(\d)n,e(\d+)", r"\1,\2", name)
+    # Replace 'oe' => 'ö' and 'ue' => 'ü'
+    name = name.replace("ö", "oe").replace("ü", "ue").replace("ä", "ae")
+
+    # Convert to Title-case, so "ehl möhren" => "Ehl Möhren"
+    name = name.title()
+
+    # Remove superfluous spaces
+    name = " ".join(name.split())
 
     return name
 
 
 def main():
-    # Create an output folders if it doesn't exist
     output_folder = os.path.join("output", "autogenerated")
     os.makedirs(output_folder, exist_ok=True)
 
-    # We'll save 'parsed_receipts.json' inside the output folder
     json_output_path = os.path.join(output_folder, "parsed_receipts.json")
 
-    folder = "receipts/pdfs/"  # Where the PDFs are stored
+    folder = "receipts/pdfs/"
     all_data = []
 
     for filename in os.listdir(folder):
@@ -260,7 +225,6 @@ def main():
             parsed["file"] = filename
             all_data.append(parsed)
 
-    # Save the JSON data
     with open(json_output_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, indent=2, ensure_ascii=False)
 

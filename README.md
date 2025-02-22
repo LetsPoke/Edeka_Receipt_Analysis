@@ -74,7 +74,7 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 │   └─ README.md
 ├─ scripts/
 │   ├─ analysis/
-│   │   └─ analyse_receipt.py
+│   │   └─ All the analysis scripts go here
 │   ├─ mail_loader.py
 │   ├─ read_receipt.py
 │   ├─ convert_receipt.py
