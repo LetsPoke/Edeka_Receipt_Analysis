@@ -13,6 +13,9 @@ def parse_item_line(line: str) -> dict:
     if re.match(r"^\d+\s*x\s*$", line):
         return {}
 
+    # Normalize excessive spaces
+    line = re.sub(r"\s+", " ", line.strip())  # Replace multiple spaces with a single space
+
     # 1) Extract the final price (e.g., "1,95 B" => "1,95")
     total_price_pattern = re.compile(r"([\d,]+)\s*(?:[A-Z]+|\*?[A-Z]+)?$")
     m_total = total_price_pattern.search(line)
