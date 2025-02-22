@@ -2,11 +2,18 @@
 
 This folder contains the scripts for parsing, converting, and analyzing the receipt data.
 
+## Scripts
+
+- **mail_loader.py**  
+    Script to load email attachments and save them to the Receipts folder.
 - **read_receipt.py**  
-  The main script that extracts data from PDF files and saves them in a JSON format.
+    Script to read the receipt data from PDF files and save it as JSON.
 - **convert_receipt.py**  
-  Converts the JSON data to CSV.
-- **analyse_receipt.py**  
-  Demonstrates analyses on the CSV data using pandas.
-- **mail_loader**  
-  A script to load the pdf data from a given email address.
+    Script to convert the JSON receipt data to CSV format.
+- **analysis/**  
+    Folder containing scripts for analyzing the receipt data.
+- **parsers/**  
+    Folder containing scripts for parsing the receipt data.
+- **utils/**  
+    Utility functions used by the scripts.
+
