@@ -170,10 +170,9 @@ def parse_item_line(line: str) -> dict:
         else:
             item["quantity"] = quantity_val
             item["unit_price"] = unit_price_val
-            # Rebuild the name from outside parts
-            new_name = cleanup_name(pre_text + " " + post_text)
-            if new_name:
-                item["name"] = new_name
+            # Rebuild name from everything outside the pattern
+            item["name"] = cleanup_name(pre_text + " " + post_text)
+            item["total_price"] = total_val
 
             # If there's a mismatch, recalc unit_price
             computed = round(unit_price_val * quantity_val, 2)
@@ -183,6 +182,9 @@ def parse_item_line(line: str) -> dict:
             else:
                 if abs(computed - round(total_val, 2)) > 0.01:
                     item["unit_price"] = round(total_val / quantity_val, 2)
+    else:
+        # 4) No "x" pattern found => quantity=1, unit_price= total_price
+        item["name"] = cleanup_name(item["name"])
 
     return item
 
