@@ -76,21 +76,10 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 │   ├── README.md
 ├── scripts/
 │   ├── analysis/             # Scripts for data analysis
-│   │   ├── analyse_receipt.py
 │   ├── parsers/              # Scripts for parsing receipts
-│   │   ├── receipt_parser.py
-│   │   ├── item_parser.py
-│   │   ├── kilo_parser.py
-│   │   ├── text_cleaner.py
 │   ├── utils/                # Utility functions (file handling, etc.)
-│   │   ├── file_handler.py
 │   ├── main.py               # Main script to process receipts
 ├── tests/                    # Folder for unit tests
-│   ├── test_receipt_parser.py
-│   ├── test_item_parser.py
-│   ├── test_kilo_parser.py
-│   ├── test_text_cleaner.py
-│   ├── test_file_handler.py
 ├── .gitignore
 ├── LICENSE
 ├── requirements.txt
@@ -117,7 +106,7 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 
 1. **Clone the repo**
    ```
-   git clone https://github.com/yourusername/Edeka_Receipt_Analysis.git
+   git clone https://github.com/LetsPoke/Edeka_Receipt_Analysis.git
    ```
 2. **Set up a virtual environment (optional but recommended)**
    ```
