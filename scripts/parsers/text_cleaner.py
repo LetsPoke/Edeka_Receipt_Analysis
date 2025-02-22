@@ -6,7 +6,7 @@ def cleanup_name(raw_name: str) -> str:
     4) Remove extra spaces
     """
     name = raw_name.lower()
-    name = name.replace("ö", "oe").replace("ü", "ue").replace("ä", "ae")
+    name = name.replace("ö", "oe").replace("ü", "ue").replace("ä", "ae").replace("ß", "ss")
     name = name.title()
     name = " ".join(name.split())
     return name

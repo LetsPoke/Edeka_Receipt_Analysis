@@ -12,3 +12,11 @@ python-dateutil==2.9.0.post0
 pytz==2025.1
 six==1.17.0
 tzdata==2025.1
+
+pip~=25.0
+setuptools~=70.0.0
+pytest~=8.3.4
+pluggy~=1.5.0
+exceptiongroup~=1.2.2
+iniconfig~=2.0.0
+packaging~=24.2
