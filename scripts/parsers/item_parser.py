@@ -6,12 +6,7 @@ def parse_item_line(line: str) -> dict:
     """
     Parses a line into {name, quantity, unit_price, total_price},
     handling old vs. new receipt styles (ö -> oe, uppercase->mixed).
-    Also skips lines like "4 x" if they contain no price.
     """
-    # Skip lines that only contain "4 x", "2 x", etc. without a price
-    # Todo: add quantity to the item name (schema changed 2023-02-22) we can handle new but not old schema
-    if re.match(r"^\d+\s*x\s*$", line):
-        return {}
 
     # Normalize excessive spaces
     line = re.sub(r"\s+", " ", line.strip())  # Replace multiple spaces with a single space

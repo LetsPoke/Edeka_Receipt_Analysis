@@ -37,7 +37,7 @@ def test_parse_lines_items():
 def test_parse_lines_sum():
     result = parse_lines(sample_lines, "sample.pdf")
 
-    assert result["summe"] == 3.98
+    assert result["sum"] == 3.98
 
 
 def test_parse_lines_file():
@@ -49,13 +49,13 @@ def test_parse_lines_file():
 def test_parse_lines_no_date():
     result = parse_lines(["EUR"], "sample.pdf")
 
-    assert result["date"] == None
+    assert result["date"] is None
 
 
 def test_parse_lines_no_time():
     result = parse_lines(["EUR"], "sample.pdf")
 
-    assert result["time"] == None
+    assert result["time"] is None
 
 
 def test_parse_lines_no_items():
@@ -67,7 +67,7 @@ def test_parse_lines_no_items():
 def test_parse_lines_no_sum():
     result = parse_lines(["EUR"], "sample.pdf")
 
-    assert result["summe"] == None
+    assert result["sum"] == 0
 
 
 def test_parse_lines_no_file():

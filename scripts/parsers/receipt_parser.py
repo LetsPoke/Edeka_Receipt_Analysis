@@ -1,6 +1,8 @@
 import pdfplumber
 import os
 import re
+
+from .fix_quantity_lines import fix_quantity_lines
 from .item_parser import parse_item_line
 from .kilo_parser import is_kilo_line, parse_kilo_line
 
@@ -18,47 +20,57 @@ def parse_receipt(pdf_path: str) -> dict:
     return parse_lines(all_lines, pdf_path)
 
 
+def remove_unwanted_items(items: list) -> list:
+    """
+    Removes any item whose 'name' field contains certain unwanted keywords
+    (e.g. 'coupon', 'nummer', 'summe'). Returns a new filtered list.
+    """
+    # Define the keywords to exclude (make them all lowercase).
+    exclude_keywords = ["coupon", "nummer:", "summe", "pfand", "Leergut", "positionsrabatt 50% -",
+                        "positionsrabatt 30% -", "23% jahresstartrab. art. -", "23% jahresstartrab. -"]
+
+    filtered = []
+    for item in items:
+        name_lower = item["name"].lower()
+        # Check if *any* exclude keyword is in the item name
+        if any(keyword in name_lower for keyword in exclude_keywords):
+            # Skip this item (don't add to filtered list)
+            continue
+        filtered.append(item)
+
+    return filtered
+
+
 def parse_lines(lines: list, pdf_path: str) -> dict:
     """ Extracts date/time, items, and sum from receipt lines """
     result = {
         "date": None,
         "time": None,
         "items": [],
-        "summe": None,
+        "sum": None,
         "file": os.path.basename(pdf_path)
     }
 
     collecting_items = False
-    sum_pattern = re.compile(r"SUMME\s*€\s*([\d,]+)")
     date_time_pattern = re.compile(r"(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})")
 
-    # Define lines to skip
-    skip_lines = ["Posten", "Coupon", "Positionsrabatt", "Summe", "Nummer:"]
-
     for line in lines:
-        # 1) Skip unwanted lines
-        if any(skip in line for skip in skip_lines):
-            continue
-
-        # 2) Look for date/time
+        # 1) Look for date/time
         dt_match = date_time_pattern.search(line)
         if dt_match:
             result["date"], result["time"] = dt_match.groups()
 
-        # 3) If we see "SUMME", stop collecting items
-        if "SUMME" in line:
-            collecting_items = False
-            match = sum_pattern.search(line)
-            if match:
-                result["summe"] = float(match.group(1).replace(",", "."))
-            continue
-
-        # 4) If line starts with "EUR", start item collection
+        # 2) If line starts with "EUR", start item collection
         if line.startswith("EUR"):
             collecting_items = True
             continue
 
-        # 5) If we are collecting items, parse them
+        # 3) If we see "Posten", stop collecting items
+        if "Posten" in line:
+            collecting_items = False
+            continue
+
+        # 4) If we are collecting items, parse them
         if collecting_items:
             if is_kilo_line(line):
                 parse_kilo_line(line, result["items"])
@@ -66,5 +78,18 @@ def parse_lines(lines: list, pdf_path: str) -> dict:
                 item = parse_item_line(line)
                 if item:
                     result["items"].append(item)
+
+    # 5) merge any lines like "2 x" with the next item
+    # because schema change is too difficult to detect, this is easier
+    fix_quantity_lines(result["items"])
+
+    # 6) Remove unwanted items (e.g. coupons, totals, etc.)
+    result["items"] = remove_unwanted_items(result["items"])
+
+    # 7) Compute sum of total_price from all items
+    # because of 3 schemas it is easier to compute instead of read sum
+    # its also cleaned without unwanted items
+    total_sum = sum(item["total_price"] for item in result["items"])
+    result["sum"] = round(total_sum, 2)
 
     return result
