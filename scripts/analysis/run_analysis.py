@@ -3,6 +3,7 @@ from basic_statistics import display_basic_statistics
 from receipt_analysis import spending_per_receipt, calculate_daily_spending, calculate_daily_items
 from overall_analysis import analyze_overall_purchases
 from output_results import save_to_csv
+from item_analysis import single_item_over_time
 
 
 def main():
@@ -10,9 +11,11 @@ def main():
 
     # display_basic_statistics(df)
 
-    receipt_level(df)
+    # receipt_level(df)
 
-    top_level(df)
+    # top_level(df)
+
+    item_level(df)
 
 
 def receipt_level(df):
@@ -63,6 +66,36 @@ def top_level(df):
     save_to_csv(item_stats, "item_stats.csv")
 
     return item_stats, most_bought, most_expensive
+
+
+def item_level(df):
+
+    # Item Analysis
+    gurken = single_item_over_time(df, "Gurken")
+    veg_mett = single_item_over_time(df, "Ruegen.Mueh.Mett")
+    oatly_aufstrich = single_item_over_time(df, "Oatly Hafer Aufst.")
+    zuccini = single_item_over_time(df, "Zucchini")
+    margarine = single_item_over_time(df, "G&G Halbf.Margari.")
+
+
+    # prints
+    print("=== Gurken over time ===")
+    print(gurken, "\n")
+
+    print("=== Veg Mett over time ===")
+    print(veg_mett, "\n")
+
+    print("=== Oatly Aufstrich over time ===")
+    print(oatly_aufstrich, "\n")
+
+    print("=== Zuccini over time ===")
+    print(zuccini, "\n")
+
+    print("=== Margarine over time ===")
+    print(margarine, "\n")
+
+    # Save outputs
+    # save_to_csv(gurken, "gurken.csv")
 
 
 if __name__ == "__main__":
