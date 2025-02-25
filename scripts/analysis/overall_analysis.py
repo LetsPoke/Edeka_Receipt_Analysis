@@ -1,4 +1,4 @@
-def analyze_item_purchases(df):
+def analyze_overall_purchases(df):
     item_stats = df.groupby("item_name").agg(
         total_quantity=("quantity", "sum"),
         total_spend=("total_price", "sum")
