@@ -27,7 +27,8 @@ def remove_unwanted_items(items: list) -> list:
     """
     # Define the keywords to exclude (make them all lowercase).
     exclude_keywords = ["coupon", "nummer:", "summe", "pfand", "Leergut", "positionsrabatt 50% -",
-                        "positionsrabatt 30% -", "23% jahresstartrab. art. -", "23% jahresstartrab. -"]
+                        "positionsrabatt 30% -", "23% jahresstartrab. art. -", "23% jahresstartrab. -",
+                        "leergut entl.allg. -", "leergut einweg allg. -"]
 
     filtered = []
     for item in items:

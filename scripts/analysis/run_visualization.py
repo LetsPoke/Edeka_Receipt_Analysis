@@ -18,16 +18,19 @@ def item_level(df):
         "Harry Vital U.Fit"
     ]
 
-    plot_multi_items_price_over_time(df, items, output_name="all_items_price.png")
+    # plot_multi_items_price_over_time(df, items, output_name="multi_items_price.png")
+
+    all_items = df["item_name"].unique()
+    # plot_multi_items_price_over_time(df, all_items, output_name="unique_items_price.png")
+
+    # all items with more than x entries
+    top_items = df["item_name"].value_counts()
+    top_items = top_items[top_items >= 18].index
+    plot_multi_items_price_over_time(df, top_items, output_name="all_items_price_18.png")
 
     plot_item_price_over_time(df, "Gurken")
     plot_item_price_over_time(df, "Ruegen.Mueh.Mett")
     plot_item_price_over_time(df, "Oatly Hafer Aufst.")
-    plot_item_price_over_time(df, "Zucchini")
-    plot_item_price_over_time(df, "G&G Halbf.Margari.")
-    plot_item_price_over_time(df, "Harry Sonnt.Broet.")
-    plot_item_price_over_time(df, "Harry Vital U.Fit")
-    plot_item_price_over_time(df, "Bio E.Cashewkerne")
 
 
 if __name__ == "__main__":
