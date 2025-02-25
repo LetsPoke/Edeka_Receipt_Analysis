@@ -32,7 +32,7 @@ def convert_json_to_csv(json_file, csv_file):
             file_name = bon.get("file", "")
             bon_date = bon.get("date", "")
             bon_time = bon.get("time", "")
-            bon_sum = bon.get("summe", 0.0)  # 'summe' is the field in JSON
+            bon_sum = bon.get("sum", 0.0)
             items = bon.get("items", [])
 
             for item in items:

@@ -5,7 +5,7 @@ from utils.file_handler import save_json
 
 def main():
     input_folder = "receipts/pdfs/"
-    output_file = "parsed_receipts_new.json"
+    output_file = "parsed_receipts.json"
     all_data = []
 
     for filename in os.listdir(input_folder):

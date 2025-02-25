@@ -78,7 +78,7 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 │   ├── analysis/             # Scripts for data analysis
 │   ├── parsers/              # Scripts for parsing receipts
 │   ├── utils/                # Utility functions (file handling, etc.)
-│   ├── main.py               # Main script to process receipts
+│   ├── scripts               # Main scripts to process receipts
 ├── tests/                    # Folder for unit tests
 ├── .gitignore
 ├── LICENSE
