@@ -60,6 +60,10 @@ A small project that parses PDF supermarket receipts (from Edeka), extracts stru
 
 ![example_output.png](example_output.png)
 
+### Visualization
+
+![example_visualization.png](example_visualization.png)
+
 ## Repository Structure
 
 ```
